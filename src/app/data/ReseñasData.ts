@@ -1,124 +1,111 @@
 // src/app/data/ReseñasData.ts
+import { resenaService } from "../../services/resena.service"; // ← RUTA CORREGIDA
+
 export interface Reseña {
   id: string;
   negocioId: string;
   usuarioId: string;
   usuarioNombre: string;
-  calificacion: number; // 1-5
+  calificacion: number;
   comentario: string;
   fecha: string;
-  imagenes?: string[]; // Para futuras implementaciones
-  util?: number; // Votos de utilidad
 }
 
-// Reseñas de ejemplo para mostrar
-export const RESEÑAS_EJEMPLO: Reseña[] = [
-  {
-    id: "res_001",
-    negocioId: "biz_001",
-    usuarioId: "user_001",
-    usuarioNombre: "María González",
-    calificacion: 5,
-    comentario: "Excelente servicio, la comida es deliciosa y el ambiente es muy agradable. Definitivamente volveré.",
-    fecha: "2024-01-20T14:30:00Z",
-  },
-  {
-    id: "res_002",
-    negocioId: "biz_001",
-    usuarioId: "user_002",
-    usuarioNombre: "Carlos Pérez",
-    calificacion: 4,
-    comentario: "Muy buena atención, los precios son accesibles. Solo faltaría más variedad en el menú.",
-    fecha: "2024-01-18T10:00:00Z",
-  },
-  {
-    id: "res_003",
-    negocioId: "biz_002",
-    usuarioId: "user_003",
-    usuarioNombre: "Ana Martínez",
-    calificacion: 5,
-    comentario: "Hotel increíble, vistas espectaculares y excelente servicio al cliente.",
-    fecha: "2024-01-15T09:00:00Z",
-  },
-  {
-    id: "res_004",
-    negocioId: "biz_003",
-    usuarioId: "user_004",
-    usuarioNombre: "Roberto Sánchez",
-    calificacion: 5,
-    comentario: "El mejor tour que he tomado. Los guías son muy conocedores y atentos.",
-    fecha: "2024-01-12T16:00:00Z",
-  }
-];
+const RESEÑAS_KEY = "reseñas";
 
-// Funciones para manejar reseñas
+// ==========================================
+// FUNCIONES EXISTENTES
+// ==========================================
+
+const generarId = (): string => {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
+};
+
+// Cargar reseñas de ejemplo (solo si no hay datos)
 export const cargarReseñasEjemplo = () => {
-  const reseñasExistentes = localStorage.getItem("reseñas");
-  
-  if (!reseñasExistentes) {
-    localStorage.setItem("reseñas", JSON.stringify(RESEÑAS_EJEMPLO));
-    console.log("✅ Reseñas de ejemplo cargadas:", RESEÑAS_EJEMPLO.length);
-    return true;
-  }
-  return false;
+  const reseñas = obtenerReseñas();
+  if (reseñas.length > 0) return;
+
+  const ejemplo: Reseña[] = [
+    {
+      id: "r1",
+      negocioId: "n1",
+      usuarioId: "u1",
+      usuarioNombre: "María González",
+      calificacion: 5,
+      comentario: "Excelente servicio, muy recomendado. La atención fue increíble.",
+      fecha: new Date(Date.now() - 86400000).toISOString(),
+    },
+    {
+      id: "r2",
+      negocioId: "n1",
+      usuarioId: "u2",
+      usuarioNombre: "Carlos Pérez",
+      calificacion: 4,
+      comentario: "Buena comida, pero el precio es un poco alto.",
+      fecha: new Date(Date.now() - 172800000).toISOString(),
+    },
+  ];
+
+  localStorage.setItem(RESEÑAS_KEY, JSON.stringify(ejemplo));
 };
 
+// Obtener todas las reseñas
 export const obtenerReseñas = (): Reseña[] => {
-  const reseñas = localStorage.getItem("reseñas");
-  if (reseñas) {
+  const reseñas = localStorage.getItem(RESEÑAS_KEY);
+  if (!reseñas) return [];
+  try {
     return JSON.parse(reseñas);
+  } catch {
+    return [];
   }
-  return [];
 };
 
+// Obtener reseñas de un negocio específico
 export const obtenerReseñasPorNegocio = (negocioId: string): Reseña[] => {
   const reseñas = obtenerReseñas();
   return reseñas.filter(r => r.negocioId === negocioId);
 };
 
+// Obtener reseña de un usuario para un negocio específico
 export const obtenerReseñaUsuario = (negocioId: string, usuarioId: string): Reseña | null => {
   const reseñas = obtenerReseñas();
   return reseñas.find(r => r.negocioId === negocioId && r.usuarioId === usuarioId) || null;
 };
 
-export const agregarReseña = (reseña: Omit<Reseña, 'id' | 'fecha'>): Reseña => {
+// ✅ MODIFICADA: Agregar una nueva reseña
+export const agregarReseña = (datos: Omit<Reseña, "id" | "fecha">): Reseña => {
   const reseñas = obtenerReseñas();
   
   const nuevaReseña: Reseña = {
-    ...reseña,
-    id: crypto.randomUUID(),
+    id: generarId(),
+    ...datos,
     fecha: new Date().toISOString(),
   };
   
-  reseñas.push(nuevaReseña);
-  localStorage.setItem("reseñas", JSON.stringify(reseñas));
+  // 1. Guardar en localStorage
+  reseñas.unshift(nuevaReseña);
+  localStorage.setItem(RESEÑAS_KEY, JSON.stringify(reseñas));
+  
+  // 2. ✅ Enviar a Supabase
+  resenaService.guardar(nuevaReseña);
+  
   return nuevaReseña;
 };
 
-export const eliminarReseña = (id: string): boolean => {
-  const reseñas = obtenerReseñas();
-  const filtradas = reseñas.filter(r => r.id !== id);
-  if (filtradas.length !== reseñas.length) {
-    localStorage.setItem("reseñas", JSON.stringify(filtradas));
-    return true;
-  }
-  return false;
-};
-
+// Actualizar calificación promedio de un negocio
 export const actualizarCalificacionNegocio = (negocioId: string) => {
   const reseñas = obtenerReseñasPorNegocio(negocioId);
-  if (reseñas.length === 0) return null;
+  if (reseñas.length === 0) return;
   
   const total = reseñas.reduce((sum, r) => sum + r.calificacion, 0);
   const promedio = total / reseñas.length;
   
   // Actualizar el negocio en localStorage
-  const negocios = JSON.parse(localStorage.getItem("businesses") || "[]");
+  const negocios = JSON.parse(localStorage.getItem('businesses') || '[]');
   const negocioIndex = negocios.findIndex((n: any) => n.id === negocioId);
   if (negocioIndex !== -1) {
-    negocios[negocioIndex].calificacion = Math.round(promedio * 10) / 10;
-    localStorage.setItem("businesses", JSON.stringify(negocios));
+    negocios[negocioIndex].calificacion = promedio;
+    localStorage.setItem('businesses', JSON.stringify(negocios));
   }
-  
-  return promedio;
 };

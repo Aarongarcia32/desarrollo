@@ -14,8 +14,10 @@ import {
 } from "lucide-react";
 import logoImg from "../imports/Captura_de_pantalla_2026-06-08_211927.png";
 import Home from "./home";
+import { API_URL, ENDPOINTS, getHeaders } from "../services/api";
 import { cargarNegociosEjemplo } from "./data/NegociosEjemplo";
 import { cargarReseñasEjemplo } from "./data/ReseñasData";
+
 
 // ============ TIPOS ============
 type Screen = "login" | "register" | "home";
@@ -128,31 +130,79 @@ function LoginScreen({ onSwitch, onLoginSuccess }: { onSwitch: () => void; onLog
     }
   }, []);
 
-  const handleLogin = () => {
-    setError("");
-    setSuccessMessage("");
-    
-    const users: UserData[] = JSON.parse(localStorage.getItem("users") || "[]");
-    const user = users.find(u => u.email === email && u.password === password);
-    
-    if (user) {
-      if (remember) {
-        localStorage.setItem("rememberedUser", JSON.stringify({ email, password }));
-      } else {
-        localStorage.removeItem("rememberedUser");
+const handleLogin = async () => {
+  setError("");
+  setSuccessMessage("");
+  
+  const users: UserData[] = JSON.parse(localStorage.getItem("users") || "[]");
+  let user = users.find(u => u.email === email && u.password === password);
+  
+  if (user) {
+    // ✅ VERIFICAR SI ESTÁ BLOQUEADO EN SUPABASE
+    try {
+      console.log('🔍 Verificando bloqueo para usuario:', user.id);
+      
+      const bloqueoResponse = await fetch(
+        `${API_URL}${ENDPOINTS.BLOQUEOS}?usuario_id=eq.${user.id}&activo=eq.true`,
+        { headers: getHeaders() }
+      );
+      
+      if (bloqueoResponse.ok) {
+        const bloqueoData = await bloqueoResponse.json();
+        console.log('📊 Datos de bloqueo:', bloqueoData);
+        
+        if (bloqueoData.length > 0) {
+          setError(`🚫 Usuario bloqueado. Motivo: ${bloqueoData[0].motivo}`);
+          return; // ← No permite iniciar sesión
+        }
       }
-      
-      localStorage.setItem("currentUser", JSON.stringify(user));
-      
-      setEmail("");
-      setPassword("");
-      setRemember(false);
-      
-      onLoginSuccess();
-    } else {
-      setError("❌ Correo o contraseña incorrectos");
+    } catch (error) {
+      console.error('❌ Error al verificar bloqueo:', error);
     }
-  };
+    
+    // ✅ OBTENER DATOS REALES DE SUPABASE
+    try {
+      const response = await fetch(`${API_URL}${ENDPOINTS.USERS}?email=eq.${email}`, {
+        headers: getHeaders()
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.length > 0) {
+          const supabaseUser = data[0];
+          user.id = supabaseUser.id;
+          user.nombre = supabaseUser.nombre;
+          user.email = supabaseUser.email;
+          user.telefono = supabaseUser.telefono || '';
+          user.accountType = supabaseUser.rol || 'usuario';
+          user.createdAt = supabaseUser.fecha_registro || new Date().toISOString();
+          
+          const userIndex = users.findIndex(u => u.email === email);
+          if (userIndex !== -1) {
+            users[userIndex] = user;
+            localStorage.setItem("users", JSON.stringify(users));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error al obtener datos de Supabase:', error);
+    }
+    
+    if (remember) {
+      localStorage.setItem("rememberedUser", JSON.stringify({ email, password }));
+    } else {
+      localStorage.removeItem("rememberedUser");
+    }
+    
+    localStorage.setItem("currentUser", JSON.stringify(user));
+    setEmail("");
+    setPassword("");
+    setRemember(false);
+    onLoginSuccess();
+  } else {
+    setError("❌ Correo o contraseña incorrectos");
+  }
+};
+
 
   return (
     <div className="w-full max-w-md mx-auto">
@@ -305,71 +355,135 @@ function RegisterScreen({ onSwitch, onRegisterSuccess }: { onSwitch: () => void;
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleRegister = () => {
-    if (!validateForm()) return;
-    
-    const users: UserData[] = JSON.parse(localStorage.getItem("users") || "[]");
-    const businesses: BusinessData[] = JSON.parse(localStorage.getItem("businesses") || "[]");
-    
-    const newUser: UserData = {
-      id: generateId(),
-      nombre,
-      email,
-      telefono: tel,
-      password,
-      accountType,
-      createdAt: new Date().toISOString(),
-    };
-    
-    users.push(newUser);
-    localStorage.setItem("users", JSON.stringify(users));
-    
-    if (isNegocio) {
-      // Generar coordenadas aleatorias cerca de Cancún si no se seleccionaron
-      const lat = businessCoords?.lat || 21.1619 + (Math.random() - 0.5) * 0.05;
-      const lng = businessCoords?.lng || -86.8515 + (Math.random() - 0.5) * 0.05;
-      
-      const newBusiness: BusinessData = {
-        id: generateId(),
-        userId: newUser.id,
-        nombre: bizNombre,
-        rfc: bizRfc,
-        giro: bizGiro,
-        direccion: bizDir,
-        telefono: bizTel,
-        categoria: selectedCategory,
-        verificado: false,
-        createdAt: new Date().toISOString(),
-        lat: lat,
-        lng: lng,
-      };
-      businesses.push(newBusiness);
-      localStorage.setItem("businesses", JSON.stringify(businesses));
-    }
-    
-    // Limpiar formulario
-    setNombre("");
-    setEmail("");
-    setTel("");
-    setPassword("");
-    setBizNombre("");
-    setBizRfc("");
-    setBizGiro("");
-    setBizDir("");
-    setBizTel("");
-    setSelectedCategory("");
-    setAccountType("usuario");
-    setBusinessCoords(null);
-    
-    localStorage.setItem("currentUser", JSON.stringify(newUser));
-    
-    setSuccessMessage(`✅ ¡Cuenta creada exitosamente${isNegocio ? " y negocio registrado" : ""}!`);
-    
-    setTimeout(() => {
-      setSuccessMessage("");
-      onRegisterSuccess();
-    }, 1500);
+const handleRegister = async () => {
+  if (!validateForm()) return;
+  
+  const users: UserData[] = JSON.parse(localStorage.getItem("users") || "[]");
+  const businesses: BusinessData[] = JSON.parse(localStorage.getItem("businesses") || "[]");
+  
+  const newUser: UserData = {
+    id: generateId(),
+    nombre,
+    email,
+    telefono: tel,
+    password,
+    accountType,
+    createdAt: new Date().toISOString(),
   };
+  
+  // ✅ GUARDAR EN SUPABASE PRIMERO
+  let supabaseUserId = null;
+  try {
+    const response = await fetch(`${API_URL}${ENDPOINTS.USERS}`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        nombre: newUser.nombre,
+        email: newUser.email,
+        telefono: newUser.telefono,
+        password: newUser.password,
+        rol: newUser.accountType || 'usuario',
+        activo: true
+      })
+    });
+    if (response.ok) {
+      const data = await response.json();
+      supabaseUserId = data.id;
+      newUser.id = supabaseUserId;
+      console.log('✅ Usuario guardado en Supabase con ID:', supabaseUserId);
+    } else {
+      const errorText = await response.text();
+      console.error('❌ Error al guardar usuario en Supabase:', response.status, errorText);
+    }
+  } catch (error) {
+    console.error('❌ No se pudo conectar con Supabase:', error);
+  }
+  
+  // Guardar en localStorage con ID de Supabase
+  users.push(newUser);
+  localStorage.setItem("users", JSON.stringify(users));
+  
+  // ==========================================
+  // 🟢 GUARDAR NEGOCIO EN SUPABASE
+  // ==========================================
+  if (isNegocio && supabaseUserId) {
+    // ✅ Coordenadas dentro de Quintana Roo
+    const lat = businessCoords?.lat || 21.1619 + (Math.random() - 0.5) * 0.1;
+    const lng = businessCoords?.lng || -86.8515 + (Math.random() - 0.5) * 0.1;
+    
+    const newBusiness: BusinessData = {
+      id: generateId(),
+      userId: newUser.id,
+      nombre: bizNombre,
+      rfc: bizRfc,
+      giro: bizGiro,
+      direccion: bizDir,
+      telefono: bizTel,
+      categoria: selectedCategory,
+      verificado: false,
+      createdAt: new Date().toISOString(),
+      lat: lat,
+      lng: lng,
+    };
+    businesses.push(newBusiness);
+    localStorage.setItem("businesses", JSON.stringify(businesses));
+    
+    try {
+      console.log('📤 Enviando negocio a Supabase...');
+      
+      const response = await fetch(`${API_URL}${ENDPOINTS.BUSINESSES}`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          nombre: newBusiness.nombre,
+          direccion: newBusiness.direccion,
+          categoria: newBusiness.categoria,
+          calificacion: 0,
+          usuario_id: supabaseUserId,
+          verificado: false,
+          activo: true,
+          telefono: newBusiness.telefono || '',
+          descripcion: newBusiness.giro || '',
+          lat: newBusiness.lat,
+          lng: newBusiness.lng
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Negocio guardado en Supabase:', data);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Error al guardar negocio en Supabase:', response.status, errorText);
+      }
+    } catch (error) {
+      console.error('❌ No se pudo conectar con Supabase:', error);
+    }
+  }
+  
+  // Limpiar formulario
+  setNombre("");
+  setEmail("");
+  setTel("");
+  setPassword("");
+  setBizNombre("");
+  setBizRfc("");
+  setBizGiro("");
+  setBizDir("");
+  setBizTel("");
+  setSelectedCategory("");
+  setAccountType("usuario");
+  setBusinessCoords(null);
+  
+  localStorage.setItem("currentUser", JSON.stringify(newUser));
+  
+  setSuccessMessage(`✅ ¡Cuenta creada exitosamente${isNegocio ? " y negocio registrado" : ""}!`);
+  
+  setTimeout(() => {
+    setSuccessMessage("");
+    onRegisterSuccess();
+  }, 1500);
+};
 
   return (
     <div className="w-full max-w-lg mx-auto">

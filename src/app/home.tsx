@@ -1,12 +1,12 @@
-// src/app/home.tsx
 import { useState, useEffect } from "react";
-import { Search, Menu, User, Heart, MapPin } from "lucide-react";
+import { Search, Menu, User, Heart, MapPin, MessageCircle } from "lucide-react";
 import logoImg from "../imports/Captura_de_pantalla_2026-06-08_211927.png";
 import Perfil from "./Perfil";
 import Favoritos from "./Favoritos";
 import Mapa from "./components/Mapa";
 import DetalleNegocio from "./components/DetalleNegocio";
-import { obtenerNegocios, buscarNegocios, BusinessData } from "./data/NegociosEjemplo";
+import ChatNegocio from "./components/ChatNegocio";
+import { negocioService, Negocio } from "../services/negocio.service";
 
 type HomeProps = {
   onLogout: () => void;
@@ -18,27 +18,80 @@ export default function Home({ onLogout }: HomeProps) {
   const [showFavoritos, setShowFavoritos] = useState(false);
   const [showMapa, setShowMapa] = useState(false);
   const [showDetalleNegocio, setShowDetalleNegocio] = useState(false);
-  const [negocioSeleccionado, setNegocioSeleccionado] = useState<BusinessData | null>(null);
+  const [negocioSeleccionado, setNegocioSeleccionado] = useState<Negocio | null>(null);
   const [userName, setUserName] = useState("");
   const [terminoBusqueda, setTerminoBusqueda] = useState("");
-  const [resultadosBusqueda, setResultadosBusqueda] = useState<BusinessData[]>([]);
+  const [resultadosBusqueda, setResultadosBusqueda] = useState<Negocio[]>([]);
   const [mostrandoResultados, setMostrandoResultados] = useState(false);
-  const [negociosDestacados, setNegociosDestacados] = useState<BusinessData[]>([]);
+  const [negociosDestacados, setNegociosDestacados] = useState<Negocio[]>([]);
+  const [allNegocios, setAllNegocios] = useState<Negocio[]>([]);
+  const [showChat, setShowChat] = useState(false); 
+  const [esNegocio, setEsNegocio] = useState(false); 
+  const [negocioInfo, setNegocioInfo] = useState<any>(null); 
+  const [userId, setUserId] = useState(''); 
 
-  useEffect(() => {
+useEffect(() => {
+  const cargarTodo = async () => {
     try {
+      // 1. Verificar si el usuario está bloqueado
       const currentUser = localStorage.getItem("currentUser");
       if (currentUser) {
         const user = JSON.parse(currentUser);
+        
+        try {
+          const bloqueoResponse = await fetch(
+            `${API_URL}${ENDPOINTS.BLOQUEOS}?usuario_id=eq.${user.id}&activo=eq.true`,
+            { headers: getHeaders() }
+          );
+          
+          if (bloqueoResponse.ok) {
+            const bloqueoData = await bloqueoResponse.json();
+            if (bloqueoData.length > 0) {
+              alert(`🚫 Tu cuenta ha sido bloqueada. Motivo: ${bloqueoData[0].motivo}`);
+              localStorage.removeItem("currentUser");
+              window.location.reload();
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error al verificar bloqueo:', error);
+        }
+        
         setUserName(user.nombre || "Usuario");
+        setUserId(user.id || '');
       }
       
-      const todos = obtenerNegocios();
-      setNegociosDestacados(todos.slice(0, 4));
+      // 2. Cargar negocios
+      const data = await negocioService.getAll();
+      setAllNegocios(data);
+      setNegociosDestacados(data.slice(0, 4));
+      
+      // 3. Verificar si es negocio
+      if (currentUser) {
+        const user = JSON.parse(currentUser);
+        const negocio = data.find(n => n.usuario_id === user.id);
+        if (negocio) {
+          setEsNegocio(true);
+          setNegocioInfo(negocio);
+        }
+      }
     } catch (error) {
-      console.error("Error cargando usuario:", error);
+      console.error('Error cargando datos:', error);
     }
-  }, []);
+  };
+  
+  cargarTodo();
+}, []);
+
+  const cargarNegocios = async () => {
+    try {
+      const data = await negocioService.getAll();
+      setAllNegocios(data);
+      setNegociosDestacados(data.slice(0, 4));
+    } catch (error) {
+      console.error('Error cargando negocios:', error);
+    }
+  };
 
   const handleBuscar = () => {
     if (terminoBusqueda.trim() === "") {
@@ -46,7 +99,12 @@ export default function Home({ onLogout }: HomeProps) {
       return;
     }
     
-    const resultados = buscarNegocios(terminoBusqueda);
+    const terminoLower = terminoBusqueda.toLowerCase();
+    const resultados = allNegocios.filter(n => 
+      n.nombre?.toLowerCase().includes(terminoLower) ||
+      n.descripcion?.toLowerCase().includes(terminoLower) ||
+      n.categoria?.toLowerCase().includes(terminoLower)
+    );
     setResultadosBusqueda(resultados);
     setMostrandoResultados(true);
   };
@@ -58,7 +116,7 @@ export default function Home({ onLogout }: HomeProps) {
     }
   };
 
-  const handleVerNegocio = (negocio: BusinessData) => {
+  const handleVerNegocio = (negocio: Negocio) => {
     setNegocioSeleccionado(negocio);
     setShowDetalleNegocio(true);
   };
@@ -76,7 +134,6 @@ export default function Home({ onLogout }: HomeProps) {
     return <Icon />;
   };
 
-  // 👇 FUNCIÓN CORREGIDA
   const cerrarTodosModales = () => {
     setShowPerfil(false);
     setShowFavoritos(false);
@@ -166,17 +223,28 @@ export default function Home({ onLogout }: HomeProps) {
         {showMapa && <Mapa onClose={() => setShowMapa(false)} />}
         
         {showDetalleNegocio && negocioSeleccionado && (
-          <DetalleNegocio
-            negocio={negocioSeleccionado}
-            onClose={() => {
-              setShowDetalleNegocio(false);
-              setNegocioSeleccionado(null);
-            }}
-            onFavoritoToggle={(id) => {
-              console.log("Favorito toggled:", id);
-            }}
-          />
-        )}
+  <DetalleNegocio
+    negocio={negocioSeleccionado}
+    onClose={() => {
+      setShowDetalleNegocio(false);
+      setNegocioSeleccionado(null);
+    }}
+    onFavoritoToggle={(id) => {
+      console.log("Favorito toggled:", id);
+    }}
+  />
+)}
+
+{/* ✅ CHAT PARA NEGOCIOS - AGREGAR ESTO */}
+{showChat && negocioInfo && userId && (
+  <ChatNegocio
+    onClose={() => setShowChat(false)}
+    negocioId={negocioInfo.id}
+    negocioNombre={negocioInfo.nombre}
+    usuarioId={userId}
+    usuarioNombre={userName}
+  />
+)}
         
         {!showPerfil && !showFavoritos && !showMapa && !showDetalleNegocio && (
           <>
@@ -337,6 +405,18 @@ export default function Home({ onLogout }: HomeProps) {
           </>
         )}
       </main>
+
+      {/* ✅ BOTÓN FLOTANTE DE CHAT (FUERA DEL MAIN) */}
+      {esNegocio && negocioInfo && (
+        <button
+          onClick={() => setShowChat(true)}
+          className="fixed bottom-6 right-6 bg-blue-900 text-white p-4 rounded-full shadow-lg hover:bg-blue-800 transition z-50 flex items-center gap-2"
+        >
+          <MessageCircle size={24} />
+          <span className="text-sm font-medium hidden sm:inline">Soporte</span>
+        </button>
+      )}
+
     </div>
   );
 }

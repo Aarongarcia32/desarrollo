@@ -1,35 +1,81 @@
 // src/app/components/DetalleNegocio.tsx
-import { useState, useEffect } from "react";
-import { X, Star, MapPin, Phone, Clock, User, Heart, Facebook, Instagram, MessageCircle, CheckCircle2 } from "lucide-react";
-import { BusinessData } from "../data/NegociosEjemplo";
-import Reseñas from "./Reseñas";
+import { useState, useEffect } from 'react';
+import { X, Star, Heart, MapPin, Phone, Clock, CheckCircle, MessageCircle } from 'lucide-react';
+import { Negocio } from '../../services/negocio.service';
+import Reseñas from './Reseñas';
+import { obtenerReseñasPorNegocio, Reseña } from '../data/ReseñasData';
 
 interface DetalleNegocioProps {
-  negocio: BusinessData | null;
+  negocio: Negocio;
   onClose: () => void;
   onFavoritoToggle?: (id: string) => void;
 }
 
 export default function DetalleNegocio({ negocio, onClose, onFavoritoToggle }: DetalleNegocioProps) {
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [isFavorito, setIsFavorito] = useState(false);
+  const [reseñas, setReseñas] = useState<Reseña[]>([]);
+  const [promedioCalificacion, setPromedioCalificacion] = useState(0);
   const [showReseñas, setShowReseñas] = useState(false);
 
   useEffect(() => {
-    if (negocio) {
-      const currentUser = localStorage.getItem("currentUser");
-      if (currentUser) {
-        const user = JSON.parse(currentUser);
-        const favs = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || "[]");
-        setIsFavorite(favs.includes(negocio.id));
-      }
+    // Verificar si es favorito
+    const currentUser = localStorage.getItem("currentUser");
+    if (currentUser) {
+      const user = JSON.parse(currentUser);
+      const favs = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || "[]");
+      setIsFavorito(favs.includes(negocio.id));
     }
-  }, [negocio]);
 
+    // Cargar reseñas
+    const reseñasNegocio = obtenerReseñasPorNegocio(negocio.id);
+    setReseñas(reseñasNegocio);
+    if (reseñasNegocio.length > 0) {
+      const total = reseñasNegocio.reduce((sum, r) => sum + r.calificacion, 0);
+      setPromedioCalificacion(total / reseñasNegocio.length);
+    }
+  }, [negocio.id]);
+
+  const handleFavoritoToggle = () => {
+    const currentUser = localStorage.getItem("currentUser");
+    if (!currentUser) {
+      alert("⚠️ Inicia sesión para agregar favoritos");
+      return;
+    }
+    const user = JSON.parse(currentUser);
+    let favs = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || "[]");
+    
+    if (isFavorito) {
+      favs = favs.filter((id: string) => id !== negocio.id);
+      localStorage.setItem(`favorites_${user.id}`, JSON.stringify(favs));
+      setIsFavorito(false);
+    } else {
+      favs.push(negocio.id);
+      localStorage.setItem(`favorites_${user.id}`, JSON.stringify(favs));
+      setIsFavorito(true);
+    }
+    
+    if (onFavoritoToggle) {
+      onFavoritoToggle(negocio.id);
+    }
+  };
+
+  const renderStars = (rating: number) => {
+    return [...Array(5)].map((_, i) => (
+      <Star
+        key={i}
+        size={16}
+        className={i < rating ? 'star-filled' : 'star-empty'}
+        fill={i < rating ? '#eab308' : 'none'}
+      />
+    ));
+  };
+
+  // Verificar que negocio existe
   if (!negocio) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
         <div className="bg-white rounded-2xl p-8 text-center">
-          <p className="text-gray-500">No hay información disponible</p>
+          <p className="text-gray-500">No se encontró el negocio</p>
           <button onClick={onClose} className="mt-4 px-4 py-2 bg-blue-900 text-white rounded-lg">
             Cerrar
           </button>
@@ -38,246 +84,142 @@ export default function DetalleNegocio({ negocio, onClose, onFavoritoToggle }: D
     );
   }
 
-  const handleFavorito = () => {
-    if (onFavoritoToggle) {
-      onFavoritoToggle(negocio.id);
-      setIsFavorite(!isFavorite);
-    }
-  };
-
-  // Función para obtener el icono de categoría
-  const getCategoryEmoji = (categoria: string) => {
-    const emojis: Record<string, string> = {
-      "Restaurante / Comida": "🍽️",
-      "Hotel / Hospedaje": "🏨",
-      "Tours y actividades": "🗺️",
-      "Tienda / Retail": "🛍️",
-      "Spa / Belleza": "💆",
-      "Transporte": "🚗",
-      "Otro": "📍",
-    };
-    return emojis[categoria] || "📍";
-  };
-
-  const getCategoryColor = (categoria: string) => {
-    const colors: Record<string, string> = {
-      "Restaurante / Comida": "bg-red-100 text-red-700",
-      "Hotel / Hospedaje": "bg-blue-100 text-blue-700",
-      "Tours y actividades": "bg-yellow-100 text-yellow-700",
-      "Tienda / Retail": "bg-purple-100 text-purple-700",
-      "Spa / Belleza": "bg-pink-100 text-pink-700",
-      "Transporte": "bg-cyan-100 text-cyan-700",
-      "Otro": "bg-gray-100 text-gray-700",
-    };
-    return colors[categoria] || "bg-gray-100 text-gray-700";
-  };
-
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('es-MX', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch {
-      return 'Fecha no disponible';
-    }
-  };
-
   return (
-    <>
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
       <div 
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
       >
-        <div 
-          className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header con botón cerrar */}
-          <div className="sticky top-0 bg-white z-10 p-4 border-b flex justify-between items-start">
-            <div className="flex items-center gap-3">
-              <div className="text-3xl">
-                {getCategoryEmoji(negocio.categoria)}
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">{negocio.nombre}</h2>
-                <p className="text-sm text-gray-500">{negocio.giro}</p>
-              </div>
-            </div>
+        {/* Header */}
+        <div className="sticky top-0 bg-white z-10 p-4 border-b flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-gray-800">{negocio.nombre}</h2>
+            {negocio.verificado && (
+              <CheckCircle size={18} className="text-green-500" />
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleFavoritoToggle}
+              className="p-2 hover:bg-gray-100 rounded-lg transition"
+            >
+              <Heart 
+                size={22} 
+                className={isFavorito ? 'fill-red-500 text-red-500' : 'text-gray-400'}
+              />
+            </button>
             <button 
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+              className="p-2 hover:bg-gray-100 rounded-lg transition"
             >
               <X size={24} />
             </button>
           </div>
+        </div>
 
-          {/* Contenido */}
-          <div className="p-6 space-y-4">
-            {/* Categorías y verificación */}
-            <div className="flex flex-wrap gap-2">
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(negocio.categoria)}`}>
-                {negocio.categoria}
-              </span>
-              {negocio.verificado && (
-                <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 flex items-center gap-1">
-                  <CheckCircle2 size={14} />
-                  Verificado
+        {/* Contenido */}
+        <div className="p-6 space-y-4">
+          {/* Categoría y calificación */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+              {negocio.categoria || 'Sin categoría'}
+            </span>
+            {negocio.calificacion > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-0.5">
+                  {renderStars(Math.round(negocio.calificacion))}
+                </div>
+                <span className="text-sm font-semibold text-gray-700">
+                  {negocio.calificacion.toFixed(1)}
                 </span>
-              )}
-              {negocio.calificacion && (
-                <span className="px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 flex items-center gap-1">
-                  <Star size={14} className="fill-yellow-500" />
-                  {negocio.calificacion} / 5.0
+                <span className="text-sm text-gray-500">
+                  ({reseñas.length} reseñas)
                 </span>
-              )}
-            </div>
-
-            {/* Descripción */}
-            {negocio.descripcion && (
-              <div className="p-4 bg-gray-50 rounded-xl">
-                <p className="text-gray-700 text-sm leading-relaxed">{negocio.descripcion}</p>
               </div>
             )}
-
-            {/* Información de contacto */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-gray-700 text-sm flex items-center gap-2">
-                📋 Información de contacto
-              </h3>
-              
-              {negocio.direccion && (
-                <div className="flex items-start gap-3 text-sm">
-                  <MapPin size={18} className="text-blue-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-gray-500 text-xs">Dirección</p>
-                    <p className="text-gray-800">{negocio.direccion}</p>
-                  </div>
-                </div>
-              )}
-
-              {negocio.telefono && (
-                <div className="flex items-start gap-3 text-sm">
-                  <Phone size={18} className="text-blue-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-gray-500 text-xs">Teléfono</p>
-                    <p className="text-gray-800">{negocio.telefono}</p>
-                  </div>
-                </div>
-              )}
-
-              {negocio.horario && (
-                <div className="flex items-start gap-3 text-sm">
-                  <Clock size={18} className="text-blue-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-gray-500 text-xs">Horario</p>
-                    <p className="text-gray-800">{negocio.horario}</p>
-                  </div>
-                </div>
-              )}
-
-              {negocio.createdAt && (
-                <div className="flex items-start gap-3 text-sm">
-                  <User size={18} className="text-blue-600 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-gray-500 text-xs">Registrado desde</p>
-                    <p className="text-gray-800">{formatDate(negocio.createdAt)}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Redes sociales */}
-            {negocio.redes && (negocio.redes.facebook || negocio.redes.instagram || negocio.redes.whatsapp) && (
-              <div className="space-y-3">
-                <h3 className="font-semibold text-gray-700 text-sm flex items-center gap-2">
-                  🌐 Redes sociales
-                </h3>
-                <div className="flex flex-wrap gap-3">
-                  {negocio.redes.facebook && (
-                    <a 
-                      href={`https://facebook.com/${negocio.redes.facebook}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-[#1877F2] text-white rounded-lg hover:opacity-80 transition text-sm"
-                    >
-                      <Facebook size={16} />
-                      {negocio.redes.facebook}
-                    </a>
-                  )}
-                  {negocio.redes.instagram && (
-                    <a 
-                      href={`https://instagram.com/${negocio.redes.instagram}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-[#E4405F] to-[#F56040] text-white rounded-lg hover:opacity-80 transition text-sm"
-                    >
-                      <Instagram size={16} />
-                      {negocio.redes.instagram}
-                    </a>
-                  )}
-                  {negocio.redes.whatsapp && (
-                    <a 
-                      href={`https://wa.me/${negocio.redes.whatsapp}`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 bg-[#25D366] text-white rounded-lg hover:opacity-80 transition text-sm"
-                    >
-                      <MessageCircle size={16} />
-                      WhatsApp
-                    </a>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Botones de acción */}
-            <div className="flex gap-3 pt-4 border-t flex-wrap">
-              <button
-                onClick={handleFavorito}
-                className={`flex-1 py-2.5 rounded-lg flex items-center justify-center gap-2 transition ${
-                  isFavorite 
-                    ? 'bg-red-50 text-red-600 border-2 border-red-200' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Heart size={18} className={isFavorite ? 'fill-red-500' : ''} />
-                {isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-              </button>
-
-              {/* 👇 NUEVO BOTÓN DE RESEÑAS */}
-              <button
-                onClick={() => setShowReseñas(true)}
-                className="flex-1 py-2.5 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600 transition flex items-center justify-center gap-2"
-              >
-                <Star size={18} />
-                Ver reseñas
-              </button>
-
-              <button
-                onClick={onClose}
-                className="flex-1 py-2.5 rounded-lg bg-blue-900 text-white hover:bg-blue-800 transition"
-              >
-                Cerrar
-              </button>
-            </div>
           </div>
+
+          {/* Descripción */}
+          {negocio.descripcion && (
+            <p className="text-gray-600 text-sm">{negocio.descripcion}</p>
+          )}
+
+          {/* Información del negocio */}
+          <div className="space-y-2">
+            {negocio.direccion && (
+              <div className="flex items-start gap-2 text-sm text-gray-600">
+                <MapPin size={16} className="shrink-0 mt-0.5" />
+                <span>{negocio.direccion}</span>
+              </div>
+            )}
+            {negocio.telefono && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Phone size={16} />
+                <span>{negocio.telefono}</span>
+              </div>
+            )}
+            {negocio.created_at && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Clock size={16} />
+                <span>Registrado: {new Date(negocio.created_at).toLocaleDateString('es-MX')}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Botón de reseñas */}
+          <button
+            onClick={() => setShowReseñas(!showReseñas)}
+            className="w-full mt-2 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition flex items-center justify-center gap-2"
+          >
+            <MessageCircle size={18} />
+            {showReseñas ? 'Ocultar reseñas' : `Ver reseñas (${reseñas.length})`}
+          </button>
+
+          {/* Reseñas */}
+          {showReseñas && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-xl max-h-60 overflow-y-auto">
+              {reseñas.length === 0 ? (
+                <p className="text-gray-500 text-sm text-center">No hay reseñas aún</p>
+              ) : (
+                <div className="space-y-3">
+                  {reseñas.map((reseña) => (
+                    <div key={reseña.id} className="border-b border-gray-200 pb-3 last:border-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                            {reseña.usuarioNombre.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-medium text-sm">{reseña.usuarioNombre}</span>
+                        </div>
+                        <div className="flex items-center gap-0.5">
+                          {renderStars(reseña.calificacion)}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{reseña.comentario}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {new Date(reseña.fecha).toLocaleDateString('es-MX')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Botón cerrar */}
+        <div className="p-4 border-t bg-gray-50">
+          <button
+            onClick={onClose}
+            className="w-full px-6 py-2.5 rounded-lg bg-blue-900 text-white hover:bg-blue-800 transition-colors font-medium"
+          >
+            Cerrar
+          </button>
         </div>
       </div>
-
-      {/* 👇 MODAL DE RESEÑAS */}
-      {showReseñas && (
-        <Reseñas
-          negocio={negocio}
-          onClose={() => setShowReseñas(false)}
-          onReseñaAgregada={() => {
-            // Actualizar la información del negocio si es necesario
-            console.log("Reseña agregada, actualizando...");
-          }}
-        />
-      )}
-    </>
+    </div>
   );
 }

@@ -2,7 +2,8 @@
 import { useJsApiLoader, GoogleMap, Marker, InfoWindow } from '@react-google-maps/api';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, MapPin, Navigation, ExternalLink, Star, Heart } from 'lucide-react';
-import { obtenerNegocios, BusinessData } from '../data/NegociosEjemplo';
+// ✅ Cambiar: importar desde Supabase
+import { negocioService, Negocio } from '../../services/negocio.service';
 import DetalleNegocio from './DetalleNegocio';
 
 interface MapaProps {
@@ -82,10 +83,10 @@ export default function Mapa({ onClose }: MapaProps) {
   });
 
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [negocios, setNegocios] = useState<BusinessData[]>([]);
-  const [selectedNegocio, setSelectedNegocio] = useState<BusinessData | null>(null);
+  const [negocios, setNegocios] = useState<Negocio[]>([]);
+  const [selectedNegocio, setSelectedNegocio] = useState<Negocio | null>(null);
   const [showInfoWindow, setShowInfoWindow] = useState(false);
-  const [negocioSeleccionadoDetalle, setNegocioSeleccionadoDetalle] = useState<BusinessData | null>(null);
+  const [negocioSeleccionadoDetalle, setNegocioSeleccionadoDetalle] = useState<Negocio | null>(null);
   const [mostrarDetalle, setMostrarDetalle] = useState(false);
   const [userPosition, setUserPosition] = useState<google.maps.LatLngLiteral | null>(null);
   const [mapCenter, setMapCenter] = useState(defaultCenter);
@@ -93,35 +94,51 @@ export default function Mapa({ onClose }: MapaProps) {
   const [favorites, setFavorites] = useState<string[]>([]);
 
   useEffect(() => {
-    const todos = obtenerNegocios();
-    setNegocios(todos);
+    cargarNegocios(); // Cargar negocios desde Supabase al montar el componente
 
-    // Obtener favoritos del usuario actual
-    const currentUser = localStorage.getItem("currentUser");
-    if (currentUser) {
-      const user = JSON.parse(currentUser);
-      const favs = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || "[]");
-      setFavorites(favs);
-    }
+   // Obtener favoritos del usuario actual
+  const currentUser = localStorage.getItem("currentUser");
+  if (currentUser) {
+    const user = JSON.parse(currentUser);
+    const favs = JSON.parse(localStorage.getItem(`favorites_${user.id}`) || "[]");
+    setFavorites(favs);
+  }
 
-    // Obtener ubicación del usuario
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const pos = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setUserPosition(pos);
-          setMapCenter(pos);
-          setMapZoom(14);
-        },
-        () => {
-          console.log('No se pudo obtener la ubicación');
-        }
-      );
-    }
-  }, []);
+  // Obtener ubicación del usuario
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const pos = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setUserPosition(pos);
+        setMapCenter(pos);
+        setMapZoom(14);
+      },
+      () => {
+        console.log('No se pudo obtener la ubicación');
+      }
+    );
+  }
+}, []);
+
+// ✅ AGREGAR esta función después del useEffect
+const cargarNegocios = async () => {
+  try {
+    const data = await negocioService.getAll();
+    console.log('📊 Negocios desde Supabase:', data);
+    
+    // ✅ Verificar que cada negocio tenga coordenadas
+    data.forEach(negocio => {
+      console.log(`📍 ${negocio.nombre}: lat=${negocio.lat}, lng=${negocio.lng}`);
+    });
+    
+    setNegocios(data);
+  } catch (error) {
+    console.error('❌ Error cargando negocios:', error);
+  }
+};
 
   const onLoad = useCallback((map: google.maps.Map) => {
     const bounds = new window.google.maps.LatLngBounds();
@@ -147,12 +164,12 @@ export default function Mapa({ onClose }: MapaProps) {
     setMap(null);
   }, []);
 
-  const handleMarkerClick = (negocio: BusinessData) => {
+  const handleMarkerClick = (negocio: Negocio) => {
     setSelectedNegocio(negocio);
     setShowInfoWindow(true);
   };
 
-  const handleVerDetalle = (negocio: BusinessData) => {
+  const handleVerDetalle = (negocio: Negocio) => {
     setNegocioSeleccionadoDetalle(negocio);
     setMostrarDetalle(true);
     setShowInfoWindow(false);
@@ -180,7 +197,7 @@ export default function Mapa({ onClose }: MapaProps) {
     }
   };
 
-  const abrirEnGoogleMaps = (negocio: BusinessData) => {
+  const abrirEnGoogleMaps = (negocio: Negocio) => {
     const ubicacion = ubicaciones[negocio.nombre];
     if (ubicacion) {
       const url = `https://www.google.com/maps/search/?api=1&query=${ubicacion.lat},${ubicacion.lng}`;
@@ -191,7 +208,7 @@ export default function Mapa({ onClose }: MapaProps) {
     }
   };
 
-  const centrarEnUbicacion = (negocio: BusinessData) => {
+  const centrarEnUbicacion = (negocio: Negocio) => {
     const ubicacion = ubicaciones[negocio.nombre];
     if (ubicacion && map) {
       map.panTo(ubicacion);
