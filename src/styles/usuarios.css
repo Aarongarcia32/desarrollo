@@ -1,0 +1,282 @@
+/* src/styles/usuarios.css */
+/* ===== USER TABLE MEJORADA ===== */
+.user-table {
+  background: #ffffff;
+  padding: 0;
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+body.dark-mode .user-table {
+  background: #161b22;
+  border-color: #30363d;
+}
+
+.user-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.user-table th {
+  background: #f8fafc;
+  color: #4a5568;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 14px 20px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+body.dark-mode .user-table th {
+  background: #0d1117;
+  color: #8b949e;
+  border-bottom: 1px solid #30363d;
+}
+
+.user-table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 14px;
+  color: #1a202c;
+  vertical-align: middle;
+}
+
+body.dark-mode .user-table td {
+  border-bottom: 1px solid #21262d;
+  color: #e6edf3;
+}
+
+.user-table tr:hover td {
+  background: #fafbfc;
+}
+
+body.dark-mode .user-table tr:hover td {
+  background: #0d1117;
+}
+
+.user-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ===== USER CELL ===== */
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.user-name {
+  font-weight: 500;
+  color: #1a202c;
+}
+
+body.dark-mode .user-name {
+  color: #e6edf3;
+}
+
+.user-id {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+body.dark-mode .user-id {
+  color: #8b949e;
+}
+
+/* ===== BADGES MEJORADOS ===== */
+.role-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.role-badge.admin {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.role-badge.user {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+body.dark-mode .role-badge.admin {
+  background: #3a2a1a;
+  color: #fbbf24;
+}
+
+body.dark-mode .role-badge.user {
+  background: #1a2a4a;
+  color: #60a5fa;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-badge.active {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.status-badge.inactive {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+body.dark-mode .status-badge.active {
+  background: #1a3a2a;
+  color: #4ade80;
+}
+
+body.dark-mode .status-badge.inactive {
+  background: #3a1a1a;
+  color: #f87171;
+}
+
+/* ===== BOTONES MEJORADOS ===== */
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.action-buttons button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-view {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.btn-view:hover {
+  background: #c7d2fe;
+  transform: scale(1.05);
+}
+
+.btn-activate {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.btn-activate:hover {
+  background: #bbf7d0;
+  transform: scale(1.05);
+}
+
+.btn-deactivate {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.btn-deactivate:hover {
+  background: #fde68a;
+  transform: scale(1.05);
+}
+
+.btn-delete {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.btn-delete:hover {
+  background: #fecaca;
+  transform: scale(1.05);
+}
+
+body.dark-mode .btn-view {
+  background: #1a2a4a;
+  color: #818cf8;
+}
+
+body.dark-mode .btn-activate {
+  background: #1a3a2a;
+  color: #4ade80;
+}
+
+body.dark-mode .btn-deactivate {
+  background: #3a2a1a;
+  color: #fbbf24;
+}
+
+body.dark-mode .btn-delete {
+  background: #3a1a1a;
+  color: #f87171;
+}
+
+/* ===== TABLE FOOTER ===== */
+.table-footer {
+  padding: 14px 20px;
+  background: #f8fafc;
+  border-top: 1px solid #e5e7eb;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+body.dark-mode .table-footer {
+  background: #0d1117;
+  border-top: 1px solid #30363d;
+  color: #8b949e;
+}
+
+.table-footer strong {
+  color: #1a202c;
+}
+
+body.dark-mode .table-footer strong {
+  color: #e6edf3;
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: #6b7280;
+}
+
+body.dark-mode .empty-state {
+  color: #8b949e;
+}
+
+.empty-state div {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.empty-state p {
+  font-size: 16px;
+  margin: 0;
+}
