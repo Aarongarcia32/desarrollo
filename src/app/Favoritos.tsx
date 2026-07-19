@@ -1,7 +1,7 @@
 // src/app/Favoritos.tsx
 import { useState, useEffect } from "react";
 import { Heart, X } from "lucide-react";
-import { obtenerNegocios, BusinessData } from "./data/negociosEjemplo";
+import { obtenerNegocios, BusinessData } from "./data/NegociosEjemplo";
 
 interface FavoritosProps {
   onClose: () => void;
