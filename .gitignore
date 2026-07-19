@@ -1,8 +1,0 @@
-node_modules
-.env
-.env.local
-.env.*.local
-# Variables de entorno
-.env
-.env.local
-.env.*.local
