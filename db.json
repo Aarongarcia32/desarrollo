@@ -1,0 +1,84 @@
+{
+  "usuarios": [
+    {
+      "id": "YrFPHimyyfk",
+      "nombre": "albino",
+      "email": "w@gmail.com",
+      "telefono": "4544984987489",
+      "password": "123456",
+      "accountType": "negocio",
+      "createdAt": "2026-07-10T05:16:52.667Z",
+      "activo": true
+    },
+    {
+      "id": "RnJVeAUqLnQ",
+      "nombre": "losss",
+      "email": "l@gmail.com",
+      "telefono": "9841331738",
+      "password": "123456",
+      "accountType": "negocio",
+      "createdAt": "2026-07-10T05:29:57.683Z",
+      "activo": true
+    },
+    {
+      "id": "QGduG0ze2fw",
+      "nombre": "leonardo ",
+      "email": "ls@gmail.com",
+      "telefono": "9841331738",
+      "password": "123456",
+      "accountType": "usuario",
+      "createdAt": "2026-07-10T06:00:43.291Z",
+      "activo": true
+    },
+    {
+      "id": "dtdOnASvezM",
+      "nombre": "hector",
+      "email": "hs@gmail.com",
+      "telefono": "9841331738",
+      "password": "123456",
+      "accountType": "usuario",
+      "createdAt": "2026-07-10T06:15:50.779Z",
+      "activo": true
+    }
+  ],
+  "negocios": [
+    {
+      "verificado": true,
+      "id": "UG8uUIT3kPQ"
+    },
+    {
+      "id": "hwh5KU8sBi0",
+      "nombre": "sssssssssssssss",
+      "direccion": "ssssssssssssssssssssssssssssssss",
+      "categoria": "Transporte",
+      "calificacion": 0,
+      "usuarioId": "mrekj6zn3d96h6c",
+      "verificado": false,
+      "activo": true,
+      "telefono": "555555555555555555555555555555",
+      "descripcion": "sssssssssssssssssssssssssss"
+    }
+  ],
+  "comentarios": [
+    {
+      "id": "4O2drk5Muag",
+      "negocioId": "biz_002",
+      "usuarioId": "mreg2ah7x97aq67",
+      "usuarioNombre": "er@gmail.com",
+      "calificacion": 5,
+      "comentario": "muy buena la comida",
+      "fecha": "2026-07-10T04:47:36.725Z"
+    },
+    {
+      "id": "kw62EAhPJIM",
+      "negocioId": "biz_003",
+      "usuarioId": "mrejtavf1ocnqlc",
+      "usuarioNombre": "hectorr",
+      "calificacion": 3,
+      "comentario": "Los turs estan regular",
+      "fecha": "2026-07-10T06:24:12.028Z"
+    }
+  ],
+  "reseñas": [],
+  "$schema": "./node_modules/json-server/schema.json"
+}
